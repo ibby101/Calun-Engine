@@ -25,5 +25,32 @@ class Application
 {
 	constexpr static uint32_t VulkanVersion{ VK_API_VERSION_1_4 };
 	constexpr static uint32_t MaxFramesInFlight{ 2 };
-	constexpr static uint32_t
+	constexpr static VkFormat swapchainFormat{ VK_FORMAT_B8G8R8A8_SRGB };
+	constexpr static VkFormat depthFormat{ VK_FORMAT_D32_SFLOAT };
+
+
+	SDL_Window* window = nullptr;
+	uint32_t width = 1280;
+	uint32_t height = 720;
+	bool running = false;
+	uint64_t frameIndex = 0;
+	uint64_t nextSignalValue = MaxFramesInFlight + 1;
+	
+	VkInstance vulkanInstance = nullptr;
+	VkPhysicalDevice physicalDevice = nullptr;
+	VkDevice device = nullptr;
+	VkSurfaceKHR surface = nullptr;
+	VmaAllocator vmaAllocator = nullptr;
+
+	uint32_t gfxQueueFamIdx = UINT32_MAX;
+	VkQueue gfxQueue = nullptr;	 
+
+	VkSwapchainKHR swapchain = nullptr;
+	std::vector<VkImage> swapchainImages;
+	std::vector<VkImageView> swapchainImageView;
+	std::vector<VkSemaphore> renderCompleteSemaphores;
+	bool requireSwapchainRecreate = false;
+	uint32_t swapchainWidth = 0;
+	uint32_t swapchainHeight = 0;
+
 };
