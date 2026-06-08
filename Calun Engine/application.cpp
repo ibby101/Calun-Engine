@@ -447,5 +447,98 @@ bool Application::createSwapchain(uint32_t width, uint32_t height)
 		.presentMode = VK_PRESENT_MODE_FIFO_KHR
 	};
 
+	if (vkCreateSwapchainKHR(device, &swapchainCreateInfo, nullptr, &swapchain) != VK_SUCCESS)
+	{
+		showError("Error creating swapchain");
+		return false;
+	}
 
+	uint32_t imageCount = 0;
+	vkGetSwapchainImagesKHR(device, swapchain, &imageCount, nullptr);
+	swapchainImages.resize(imageCount);
+	vkGetSwapchainImagesKHR(device, swapchain, &imageCount, swapchainImages.data());
+	swapchainImageViews.resize(imageCount);
+
+	for (size_t i = 0; i < swapchainImages.size(); ++i)
+	{
+		VkImageViewCreateInfo imgViewInfo
+		{
+			.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+			.image = swapchainImages[i],
+			.viewType = VK_IMAGE_VIEW_TYPE_2D,
+			.format = swapchainFormat,
+			.subresourceRange
+			{
+				.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+				.levelCount = 1,
+				.layerCount = 1
+			}
+		};
+
+		if (vkCreateImageView(device, &imgViewInfo, nullptr, &swapchainImageViews[i]) != VK_SUCCESS)
+		{
+			showError("Error creating swapchain image view");
+			return false;
+		}
+	}
+
+	renderCompleteSemaphores.resize(swapchainImages.size());
+	
+	for (VkSemaphore& semaphore : renderCompleteSemaphores)
+	{
+		VkSemaphoreCreateInfo semaphoreInfo{ .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
+		if (vkCreateSemaphore(device, &semaphoreInfo, nullptr, &semaphore) != VK_SUCCESS)
+		{
+			showError("Error creating the render-complete semaphore");
+			return false;
+		}
+	}
+
+	VkImageCreateInfo depthCreateInfo
+	{
+		.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
+		.imageType = VK_IMAGE_TYPE_2D,
+		.format = depthFormat,
+		.extent{.width = swapchainWidth, .height = swapchainHeight, .depth = 1},
+		.mipLevels = 1,
+		.arrayLayers = 1,
+		.samples = VK_SAMPLE_COUNT_1_BIT,
+		.tiling = VK_IMAGE_TILING_OPTIMAL,
+		.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
+		.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED
+	};
+
+	VmaAllocationCreateInfo allocInfo
+	{
+		.flags = VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT,
+		.usage = VMA_MEMORY_USAGE_AUTO
+	};
+
+	if (vmaCreateImage(vmaAllocator, &depthCreateInfo, &allocInfo, &depthImage, &depthImageAllocation, nullptr) != VK_SUCCESS)
+	{
+		showError("Error allocating depth image");
+		return false;
+	}
+
+	VkImageViewCreateInfo depthImgViewInfo
+	{
+		.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+		.image = depthImage,
+		.viewType = VK_IMAGE_VIEW_TYPE_2D,
+		.format = depthFormat,
+		.subresourceRange
+		{
+			.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT,
+			.levelCount = 1,
+			.layerCount = 1
+		}
+	};
+
+	if (vkCreateImageView(device, &depthImgViewInfo, nullptr, &depthImageView) != VK_SUCCESS)
+	{
+		showError("Error creating depth image view");
+		return false;
+	}
+
+	return true;
 }
