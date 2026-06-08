@@ -53,4 +53,39 @@ class Application
 	uint32_t swapchainWidth = 0;
 	uint32_t swapchainHeight = 0;
 
+	VkImage depthImage = nullptr;
+	VkImageView depthImageView = nullptr;
+	VmaAllocation depthImageAllocation = nullptr;
+
+	VkPipelineLayout pipelineLayout = nullptr;
+	VkPipeline pipeline = nullptr;
+
+	VkShaderModule vertShader = nullptr;
+	VkShaderModule fragShader = nullptr;
+
+	VkSemaphore timelineSemaphore = nullptr;
+	std::array<FrameResources, MaxFramesInFlight> frameResources;
+
+	void showError(const std::string& errorMessage) const;
+
+	bool initialiseVulkan();
+	bool createVulkanInstance();
+	bool createSurface();
+	VkPhysicalDevice findPhysicalDevice();
+	bool findGraphicsQueue();
+	bool createDevice(VkPhysicalDevice physicalDevice);
+	bool initialiseVMA();
+	bool createSwapchain(uint32_t width, uint32_t height);
+	void destroySwapchain();
+	VkShaderModule createShaderModule(const std::string& fileName, shaderc_shader_kind kind) const;
+	bool createShaders();
+	VkPipeline createGraphicsPipeline();
+	bool createSyncResources();
+	bool createCommandBuffers();
+	void render();
+
+public:
+	bool initialise();
+	void shutdown();
+	void run();
 };
