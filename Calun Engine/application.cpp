@@ -300,3 +300,152 @@ VkPhysicalDevice Application::findPhysicalDevice()
 	return physicalDevice;
 }
 
+bool Application::findGraphicsQueue()
+{
+	uint32_t queueFamilyCount = 0;
+	vkGetPhysicalDeviceQueueFamilyProperties2(physicalDevice, &queueFamilyCount, nullptr);
+	std::vector<VkQueueFamilyProperties2> queueFamProps(queueFamilyCount, { VK_STRUCTURE_TYPE_QUEUE_FAMILY_PROPERTIES_2 });
+	vkGetPhysicalDeviceQueueFamilyProperties2(physicalDevice, &queueFamilyCount, queueFamProps.data());
+
+	for (int currentFamilyIdx = 0; currentFamilyIdx < queueFamProps.size(); ++currentFamilyIdx)
+	{
+		VkBool32 hasPresentSupport = false;
+		vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevice, currentFamilyIdx, surface, &hasPresentSupport);
+
+		const auto& props = queueFamProps[currentFamilyIdx];
+
+		if (props.queueFamilyProperties.queueFlags && VK_QUEUE_GRAPHICS_BIT && hasPresentSupport)
+		{
+			gfxQueueFamIdx = currentFamilyIdx;
+			return true;
+		}
+	}
+	return false;
+}
+
+bool Application::createDevice(VkPhysicalDevice physicalDevice)
+{
+	float queuePriority = 1.0f;
+	std::vector<uint32_t> queueFamilies{ gfxQueueFamIdx };
+
+	VkDeviceQueueCreateInfo gfxQueueInfo
+	{
+		.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
+		.queueFamilyIndex = gfxQueueFamIdx,
+		.queueCount = 1,
+		.pQueuePriorities = &queuePriority
+	};
+
+	VkPhysicalDeviceVulkan14Features supportedFeatures14{ .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_4_FEATURES, .pNext = nullptr };
+	VkPhysicalDeviceVulkan13Features supportedFeatures13{ .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES, .pNext = &supportedFeatures14 };
+	VkPhysicalDeviceVulkan12Features supportedFeatures12{ .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES, .pNext = &supportedFeatures13 };
+	VkPhysicalDeviceFeatures2 supportedFeatures{ .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2, .pNext = &supportedFeatures12 };
+	vkGetPhysicalDeviceFeatures2(physicalDevice, &supportedFeatures);
+
+	if (!supportedFeatures13.dynamicRendering || !supportedFeatures13.synchronization2 ||
+		!supportedFeatures12.timelineSemaphore)
+	{
+		showError("Physical device doesn't meet the feature requirements");
+		return false;
+	}
+
+	VkPhysicalDeviceVulkan14Features features14
+	{
+		.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_4_FEATURES,
+		.pNext = nullptr
+	};
+
+	VkPhysicalDeviceVulkan13Features features13
+	{
+		.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES,
+		.pNext = &features14,
+		.synchronization2 = VK_TRUE,
+		.dynamicRendering = VK_TRUE
+	};
+
+	VkPhysicalDeviceVulkan12Features features12
+	{
+		.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES,
+		.pNext = &features13,
+		.timelineSemaphore = VK_TRUE
+	};
+	VkPhysicalDeviceFeatures2 features{ .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2, .pNext = &features12 };
+
+	const std::vector<const char*> deviceExtensions{ VK_KHR_SWAPCHAIN_EXTENSION_NAME };
+	VkDeviceCreateInfo devCreateInfo
+	{
+		.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
+		.pNext = &features,
+		.queueCreateInfoCount = 1,
+		.pQueueCreateInfos = &gfxQueueInfo,
+		.enabledExtensionCount = static_cast<uint32_t>(deviceExtensions.size()),
+		.ppEnabledExtensionNames = deviceExtensions.data(),
+		.pEnabledFeatures = nullptr
+	};
+
+	if (vkCreateDevice(physicalDevice, &devCreateInfo, nullptr, &device) != VK_SUCCESS)
+	{
+		return false;
+	}
+
+	vkGetDeviceQueue(device, gfxQueueFamIdx, 0, &gfxQueue);
+	if (!gfxQueue)
+	{
+		showError("Could not get graphics queue");
+		return false;
+	}
+	return true;
+}
+
+bool Application::initialiseVMA()
+{
+	VmaVulkanFunctions vmaFuncInfo{};
+	VmaAllocatorCreateInfo vmaAllocInfo
+	{
+		.flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT,
+		.physicalDevice = physicalDevice,
+		.device = device,
+		.pVulkanFunctions = &vmaFuncInfo,
+		.instance = vulkanInstance,
+		.vulkanApiVersion = VulkanVersion
+	};
+
+	vmaImportVulkanFunctionsFromVolk(&vmaAllocInfo, &vmaFuncInfo);
+
+	if (vmaCreateAllocator(&vmaAllocInfo, &vmaAllocator) != VK_SUCCESS)
+	{
+		return false;
+	}
+	return true;
+}
+
+bool Application::createSwapchain(uint32_t width, uint32_t height)
+{
+	swapchainWidth = width;
+	swapchainHeight = height;
+
+	VkSurfaceCapabilitiesKHR surfaceCaps{};
+
+	if (vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicalDevice, surface, &surfaceCaps) != VK_SUCCESS)
+	{
+		showError("Could not get surface capabilities");
+		return false;
+	}
+
+	VkSwapchainCreateInfoKHR swapchainCreateInfo
+	{
+		.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
+		.surface = surface,
+		.minImageCount = surfaceCaps.minImageCount,
+		.imageFormat = swapchainFormat,
+		.imageColorSpace = VK_COLORSPACE_SRGB_NONLINEAR_KHR,
+		.imageExtent{.width = swapchainWidth, .height = swapchainHeight },
+		.imageArrayLayers = 1,
+		.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+		.preTransform = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR,
+		.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,
+		.presentMode = VK_PRESENT_MODE_FIFO_KHR
+	};
+
+
+}
