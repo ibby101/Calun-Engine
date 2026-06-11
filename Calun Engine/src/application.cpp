@@ -617,4 +617,3 @@ VkShaderModule Application::createShaderModule(const std::string& fileName, shad
 
 	return shaderModule;
 }
-

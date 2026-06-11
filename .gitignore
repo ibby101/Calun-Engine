@@ -1,5 +1,7 @@
 out/
 build/
 .vs/
+.slnx/
+.vcxproj/
 CMakeSettings.json
 /CMakeUserPresets.json
