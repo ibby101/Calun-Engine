@@ -3,5 +3,7 @@ build/
 .vs/
 .slnx/
 .vcxproj/
+.gitattributes/
+.slnx/
 CMakeSettings.json
 /CMakeUserPresets.json
