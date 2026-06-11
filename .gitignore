@@ -1,8 +1,15 @@
+# Prune the build and metadata directories
 out/
 build/
 .vs/
-.slnx/
-.vcxproj/
-.gitattributes/
+
+# Visual Studio solution or project files anywhere in the tree
+*.slnx
+*.vcxproj
+*.filters
+*.user
+
+# Keep root clean
+.gitattributes
 CMakeSettings.json
-/CMakeUserPresets.json
+CMakeUserPresets.json
