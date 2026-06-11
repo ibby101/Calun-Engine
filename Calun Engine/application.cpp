@@ -1,4 +1,5 @@
 #include "src/application.h"
+#include "utils.h"
 
 #include <SDL3/SDL.h>
 #define VOLK_IMPLEMENTATION
@@ -541,4 +542,78 @@ bool Application::createSwapchain(uint32_t width, uint32_t height)
 	}
 
 	return true;
+}
+
+void Application::destroySwapchain()
+{
+	for (VkImageView swapchainImgView : swapchainImageViews)
+	{
+		vkDestroyImageView(device, swapchainImgView, nullptr);
+	}
+
+	swapchainImageViews.clear();
+
+	for (VkSemaphore& semaphore : renderCompleteSemaphores)
+	{
+		vkDestroySemaphore(device, semaphore, nullptr);
+	}
+	renderCompleteSemaphores.clear();
+
+	if (swapchain)
+	{
+		vkDestroySwapchainKHR(device, swapchain, nullptr);
+	}
+
+	if (depthImageView)
+	{
+		vkDestroyImageView(device, depthImageView, nullptr);
+		vmaDestroyImage(vmaAllocator, depthImage, depthImageAllocation);
+		depthImageView = nullptr;
+	}
+}
+
+VkShaderModule Application::createShaderModule(const std::string& fileName, shaderc_shader_kind kind) const
+{
+	const std::string shaderPath = "src/shaders/" + fileName;
+	const std::string src = readTextFile(shaderPath);
+
+	if (src.empty())
+	{
+		showError("Specified shader file doesn't exist: " + shaderPath);
+		return nullptr;
+	}
+
+	// shader compilation to SPIR-V
+	std::cout << "Compiling shader: " << shaderPath << std::endl;
+	shaderc::Compiler compiler;
+	shaderc::CompileOptions opts;
+	opts.SetTargetEnvironment(shaderc_target_env_vulkan, shaderc_env_version_vulkan_1_4);
+	opts.SetTargetSpirv(shaderc_spirv_version_1_6);
+	opts.SetOptimizationLevel(shaderc_optimization_level_performance);
+	shaderc::CompilationResult result = compiler.CompileGlslToSpv(src, kind, fileName.c_str(), opts);
+
+	if (result.GetCompilationStatus() != shaderc_compilation_status_success)
+	{
+		std::cerr << "Shader compilation error: " << result.GetErrorMessage() << std::endl;
+		return nullptr;
+	}
+
+	std::vector<uint32_t> spv = { result.cbegin(), result.cend() };
+
+	VkShaderModuleCreateInfo moduleCreateInfo
+	{
+		.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
+		.codeSize = spv.size() * sizeof(uint32_t),
+		.pCode = spv.data()
+	};
+
+	VkShaderModule shaderModule = nullptr;
+
+	if (vkCreateShaderModule(device, &moduleCreateInfo, nullptr, &shaderModule) != VK_SUCCESS)
+	{
+		showError("Error creating shader module");
+		return nullptr;
+	}
+
+	return shaderModule;
 }
