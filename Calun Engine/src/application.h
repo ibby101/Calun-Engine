@@ -1,6 +1,6 @@
 #pragma once
 
-#define VULKAN_NO_PROTOTYPES
+#define VK_NO_PROTOTYPES
 #include <SDL3/SDL_Vulkan.h>
 #include <string>
 #include <vulkan/vulkan.h>
