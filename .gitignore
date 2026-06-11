@@ -4,6 +4,5 @@ build/
 .slnx/
 .vcxproj/
 .gitattributes/
-.slnx/
 CMakeSettings.json
 /CMakeUserPresets.json

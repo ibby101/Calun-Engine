@@ -620,5 +620,15 @@ VkShaderModule Application::createShaderModule(const std::string& fileName, shad
 
 bool Application::createShaders()
 {
-	if (vertShader)
+	if (vertShader = createShaderModule("shader.vert", shaderc_vertex_shader); !vertShader)
+	{
+		return false;
+	}
+
+	if (fragShader = createShaderModule("shader.frag", shaderc_fragment_shader); !fragShader)
+	{
+		return false;
+	}
+
+	return true;
 }
