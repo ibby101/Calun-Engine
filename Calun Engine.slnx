@@ -1,7 +1,0 @@
-<Solution>
-  <Configurations>
-    <Platform Name="x64" />
-    <Platform Name="x86" />
-  </Configurations>
-  <Project Path="Calun Engine/Calun Engine.vcxproj" Id="4b7ff260-089f-456a-bff6-981ce6df4f1d" />
-</Solution>
