@@ -843,6 +843,11 @@ bool Application::createCommandBuffers()
 
 void Application::render()
 {
+	if (width == 0 || height == 0)
+	{
+		return;
+	}
+
 	if (requireSwapchainRecreate)
 	{
 		vkDeviceWaitIdle(device);

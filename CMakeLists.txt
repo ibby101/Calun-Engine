@@ -6,11 +6,11 @@ find_package(Vulkan REQUIRED COMPONENTS volk shaderc_combined)
 find_package(glm REQUIRED)
 
 add_executable(calunapp
-	"Calun Engine/src/main.cpp"
-	"Calun Engine/src/application.h"
-	"Calun Engine/src/application.cpp"
-	"Calun Engine/src/utils.h"
-	"Calun Engine/src/utils.cpp"
+	"src/main.cpp"
+	"src/application.h"
+	"src/application.cpp"
+	"src/utils.h"
+	"src/utils.cpp"
 )
 
 set(CMAKE_CXX_STANDARD 20)
@@ -26,3 +26,16 @@ target_link_libraries(calunapp PRIVATE
 	Vulkan::shaderc_combined
 	SDL3::SDL3
 	glm::glm)
+
+add_custom_command(TARGET calunapp POST_BUILD
+	COMMAND ${CMAKE_COMMAND} -E copy_if_different
+	$<TARGET_FILE:SDL3::SDL3>
+	$<TARGET_FILE_DIR:calunapp>
+)
+
+add_custom_command(TARGET calunapp POST_BUILD
+	COMMAND ${CMAKE_COMMAND} -E copy_directory
+	"${CMAKE_CURRENT_SOURCE_DIR}/src/shaders"
+    "$<TARGET_FILE_DIR:calunapp>/src/shaders"
+    COMMENT "Syncing updated GLSL shaders to execution folder..."
+)
