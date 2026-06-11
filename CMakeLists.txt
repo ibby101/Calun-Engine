@@ -1,16 +1,16 @@
 cmake_minimum_required(VERSION 3.20)
-project(Calun Engine)
+project(Calun-Engine)
 
 find_package(SDL3 REQUIRED)
 find_package(Vulkan REQUIRED COMPONENTS volk shaderc_combined)
 find_package(glm REQUIRED)
 
 add_executable(calunapp
-	"src/main.cpp"
-	"src/application.h"
-	"src/application.cpp"
-	"src/utils.h"
-	"src/utils.cpp"
+	"Calun Engine/src/main.cpp"
+	"Calun Engine/src/application.h"
+	"Calun Engine/src/application.cpp"
+	"Calun Engine/src/utils.h"
+	"Calun Engine/src/utils.cpp"
 )
 
 set(CMAKE_CXX_STANDARD 20)

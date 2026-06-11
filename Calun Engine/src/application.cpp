@@ -1,4 +1,4 @@
-#include "src/application.h"
+#include "./application.h"
 #include "utils.h"
 
 #include <SDL3/SDL.h>
@@ -631,4 +631,257 @@ bool Application::createShaders()
 	}
 
 	return true;
+}
+
+VkPipeline Application::createGraphicsPipeline()
+{
+	VkPipelineLayoutCreateInfo pipelineLayoutInfo
+	{
+		.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+		.setLayoutCount = 0,
+		.pushConstantRangeCount = 0
+	};
+
+	if (vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &pipelineLayout) != VK_SUCCESS)
+	{
+		showError("Unable to create pipeline layout");
+		return nullptr;
+	}
+
+	const char* entryPoint = "main";
+	std::vector<VkPipelineShaderStageCreateInfo> shaderStages
+	{
+		{
+			.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+			.stage = VK_SHADER_STAGE_VERTEX_BIT,
+			.module = vertShader,
+			.pName = entryPoint
+		},
+		{
+			.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+			.stage = VK_SHADER_STAGE_FRAGMENT_BIT,
+			.module = fragShader,
+			.pName = entryPoint
+		}
+	};
+
+	VkPipelineVertexInputStateCreateInfo vtxInputInfo
+	{
+		.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
+	};
+
+	VkPipelineInputAssemblyStateCreateInfo inputAssemblyInfo
+	{
+		.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
+		.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST
+	};
+
+	VkPipelineDepthStencilStateCreateInfo depthStencilInfo
+	{
+		.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
+		.depthTestEnable = VK_TRUE,
+		.depthWriteEnable = VK_TRUE,
+		.depthCompareOp = VK_COMPARE_OP_LESS,
+		.stencilTestEnable = VK_FALSE
+	};
+
+	VkPipelineViewportStateCreateInfo viewportInfo
+	{
+		.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO,
+		.viewportCount = 1,
+		.pViewports = nullptr,
+		.scissorCount = 1,
+		.pScissors = nullptr
+	};
+
+	VkPipelineRasterizationStateCreateInfo rasterInfo
+	{
+		.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO,
+		.polygonMode = VK_POLYGON_MODE_FILL,
+		.cullMode = VK_CULL_MODE_BACK_BIT,
+		.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE,
+		.lineWidth = 1.0f
+	};
+
+	VkPipelineMultisampleStateCreateInfo multiSampleInfo
+	{
+		.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,
+		.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT
+	};
+
+	VkPipelineColorBlendAttachmentState attachState
+	{
+		.blendEnable = VK_FALSE,
+		.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT
+	};
+
+	VkPipelineColorBlendStateCreateInfo blendInfo
+	{
+		.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
+		.attachmentCount = 1,
+		.pAttachments = &attachState
+	};
+
+	std::vector<VkDynamicState> dynamicState
+	{
+		VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR
+	};
+
+	VkPipelineDynamicStateCreateInfo dynamicStateInfo
+	{
+		.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO,
+		.dynamicStateCount = static_cast<uint32_t>(dynamicState.size()),
+		.pDynamicStates = dynamicState.data()
+	};
+
+	VkPipelineRenderingCreateInfo renderInfo
+	{
+		.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO,
+		.colorAttachmentCount = 1,
+		.pColorAttachmentFormats = &swapchainFormat,
+		.depthAttachmentFormat = depthFormat
+	};
+
+	VkGraphicsPipelineCreateInfo pipelineInfo
+	{
+		.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
+		.pNext = &renderInfo,
+		.stageCount = static_cast<uint32_t>(shaderStages.size()),
+		.pStages = shaderStages.data(),
+		.pVertexInputState = &vtxInputInfo,
+		.pInputAssemblyState = &inputAssemblyInfo,
+		.pViewportState = &viewportInfo,
+		.pRasterizationState = &rasterInfo,
+		.pMultisampleState = &multiSampleInfo,
+		.pDepthStencilState = &depthStencilInfo,
+		.pColorBlendState = &blendInfo,
+		.pDynamicState = &dynamicStateInfo,
+		.layout = pipelineLayout,
+		.renderPass = VK_NULL_HANDLE
+	};
+
+	if (vkCreateGraphicsPipelines(device, nullptr, 1, &pipelineInfo, nullptr, &pipeline) != VK_SUCCESS)
+	{
+		showError("Error creating the pipeline");
+		return nullptr;
+	}
+
+	return pipeline;
+}
+
+bool Application::createSyncResources()
+{
+	VkSemaphoreTypeCreateInfo semaphoreTypeInfo
+	{
+		.sType = VK_STRUCTURE_TYPE_SEMAPHORE_TYPE_CREATE_INFO,
+		.semaphoreType = VK_SEMAPHORE_TYPE_TIMELINE,
+		.initialValue = MaxFramesInFlight
+	};
+
+	VkSemaphoreCreateInfo semaphoreInfo
+	{
+		.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
+		.pNext = &semaphoreTypeInfo
+	};
+
+	if (vkCreateSemaphore(device, &semaphoreInfo, nullptr, &timelineSemaphore) != VK_SUCCESS)
+	{
+		showError("Unable to create timeline semaphore");
+		return false;
+	}
+
+	for (FrameResources& res : frameResources)
+	{
+		VkSemaphoreCreateInfo semaphoreInfo{ .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
+		if (vkCreateSemaphore(device, &semaphoreInfo, nullptr, &res.imageAcquiredSemaphore) != VK_SUCCESS)
+		{
+			showError("Error creating the per-frame image-acquire semaphore");
+			return false;
+		}
+	}
+	return true;
+}
+
+bool Application::createCommandBuffers()
+{
+	for (FrameResources& res : frameResources)
+	{
+		VkCommandPoolCreateInfo poolInfo
+		{
+			.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
+			.queueFamilyIndex = gfxQueueFamIdx
+		};
+
+		if (vkCreateCommandPool(device, &poolInfo, nullptr, &res.commandPool) != VK_SUCCESS)
+		{
+			showError("Unable to create command buffer pool");
+			return false;
+		}
+
+		VkCommandBufferAllocateInfo cmdAllocInfo
+		{
+			.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+			.commandPool = res.commandPool,
+			.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+			.commandBufferCount = 1
+		};
+
+		if (vkAllocateCommandBuffers(device, &cmdAllocInfo, &res.commandBuffer) != VK_SUCCESS)
+		{
+			showError("Unable to allocate command buffer");
+			return false;
+		}
+	}
+	return true;
+}
+
+void Application::render()
+{
+	if (requireSwapchainRecreate)
+	{
+		vkDeviceWaitIdle(device);
+		destroySwapchain();
+		createSwapchain(width, height);
+		requireSwapchainRecreate = false;
+	}
+
+	const uint32_t frameResIndex = frameIndex++ % MaxFramesInFlight;
+	const uint64_t signalValue = nextSignalValue++;
+	const uint64_t waitValue = signalValue - MaxFramesInFlight;
+
+	VkSemaphoreWaitInfo waitInfo
+	{
+		.sType = VK_STRUCTURE_TYPE_SEMAPHORE_WAIT_INFO,
+		.semaphoreCount = 1,
+		.pSemaphores = &timelineSemaphore,
+		.pValues = &waitValue
+	};
+
+	vkWaitSemaphores(device, &waitInfo, UINT64_MAX);
+
+	FrameResources& res = frameResources[frameResIndex];
+	vkResetCommandPool(device, res.commandPool, 0);
+
+	VkSemaphore imageAcquireSemaphore = frameResources[frameResIndex].imageAcquiredSemaphore;
+
+	uint32_t imageIndex = 0;
+	VkResult acquireResult = vkAcquireNextImageKHR(device, swapchain, UINT64_MAX, imageAcquireSemaphore, VK_NULL_HANDLE, &imageIndex);
+
+	if (acquireResult == VK_ERROR_OUT_OF_DATE_KHR)
+	{
+		requireSwapchainRecreate = true;
+		return;
+	}
+	else if (acquireResult == VK_SUBOPTIMAL_KHR)
+	{
+		requireSwapchainRecreate = true;
+	}
+
+	VkCommandBufferBeginInfo cmdBeginInfo
+	{
+		.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+		.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT
+	};
+
+	vkBeginCommandBuffer(res.commandBuffer, &cmdBeginInfo);
 }
