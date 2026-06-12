@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.20)
 project(Calun-Engine)
 
-find_package(SDL3 REQUIRED)
+find_package(SDL3 CONFIG REQUIRED)
 find_package(Vulkan REQUIRED COMPONENTS volk shaderc_combined)
 find_package(glm REQUIRED)
 
@@ -27,11 +27,21 @@ target_link_libraries(calunapp PRIVATE
 	SDL3::SDL3
 	glm::glm)
 
+if(UNIX AND NOT APPLE)
+    target_link_libraries(calunapp PRIVATE
+        SPIRV-Tools-opt
+        SPIRV-Tools
+        glslang
+        MachineIndependent)
+endif()
+
+if(WIN32)
 add_custom_command(TARGET calunapp POST_BUILD
 	COMMAND ${CMAKE_COMMAND} -E copy_if_different
 	$<TARGET_FILE:SDL3::SDL3>
 	$<TARGET_FILE_DIR:calunapp>
 )
+endif()
 
 add_custom_command(TARGET calunapp POST_BUILD
 	COMMAND ${CMAKE_COMMAND} -E copy_directory

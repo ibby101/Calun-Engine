@@ -3,10 +3,21 @@
 
 
 #include <SDL3/SDL.h>
+
 #define VOLK_IMPLEMENTATION
-#include <Volk/volk.h>
+#if defined(_WIN32)|| defined(_WIN64)
+    #include <volk/volk.h>
+#elif defined(__linux__)
+    #include <volk.h>
+#endif
+
 #define VMA_IMPLEMENTATION
-#include <vma/vk_mem_alloc.h>
+#if defined(_WIN32)|| defined(_WIN64)
+    #include <vma/vk_mem_alloc.h>
+#elif defined(__linux__)
+    #include <vk_mem_alloc.h>
+#endif
+
 
 #include <iostream>
 
@@ -485,7 +496,7 @@ bool Application::createSwapchain(uint32_t width, uint32_t height)
 	}
 
 	renderCompleteSemaphores.resize(swapchainImages.size());
-	
+
 	for (VkSemaphore& semaphore : renderCompleteSemaphores)
 	{
 		VkSemaphoreCreateInfo semaphoreInfo{ .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
@@ -576,7 +587,7 @@ void Application::destroySwapchain()
 VkShaderModule Application::createShaderModule(const std::string& fileName, shaderc_shader_kind kind) const
 {
 	const std::string shaderPath = "src/shaders/" + fileName;
-	 
+
 	//std::cout << "DEBUG: Engine is looking for shader at: "
 	//	<< std::filesystem::absolute(shaderPath).string()
 	//	<< std::endl;
@@ -954,7 +965,7 @@ void Application::render()
 		.storeOp = VK_ATTACHMENT_STORE_OP_STORE,
 		.clearValue{.color{0.01f, 0.01f, 0.01f, 1}}
 	};
-	
+
 	VkRenderingAttachmentInfo depthAttachInfo
 	{
 		.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
@@ -1033,7 +1044,7 @@ void Application::render()
 	};
 
 	vkCmdPipelineBarrier2(res.commandBuffer, &presentDepInfo);
-	
+
 	vkEndCommandBuffer(res.commandBuffer);
 
 	VkSemaphoreSubmitInfo imageAcquireWaitInfo

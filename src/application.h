@@ -1,7 +1,7 @@
 #pragma once
 
 #define VK_NO_PROTOTYPES
-#include <SDL3/SDL_Vulkan.h>
+#include <SDL3/SDL_vulkan.h>
 #include <string>
 #include <vulkan/vulkan.h>
 #include <vector>
@@ -35,7 +35,7 @@ class Application
 	bool running = false;
 	uint64_t frameIndex = 0;
 	uint64_t nextSignalValue = MaxFramesInFlight + 1;
-	
+
 	VkInstance vulkanInstance = nullptr;
 	VkPhysicalDevice physicalDevice = nullptr;
 	VkDevice device = nullptr;
@@ -43,7 +43,7 @@ class Application
 	VmaAllocator vmaAllocator = nullptr;
 
 	uint32_t gfxQueueFamIdx = UINT32_MAX;
-	VkQueue gfxQueue = nullptr;	 
+	VkQueue gfxQueue = nullptr;
 
 	VkSwapchainKHR swapchain = nullptr;
 	std::vector<VkImage> swapchainImages;
